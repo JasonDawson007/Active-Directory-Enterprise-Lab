@@ -1,6 +1,6 @@
 # Enterprise Active Directory & Security Engineering Lab
 
-**Author:** [Your Name] | [LinkedIn Profile Link] | [GitHub Profile Link]
+**Author:** Jason Dawson |https://github.com/JasonDawson007/Active-Directory-Enterprise-Lab/edit/main/README.md
 
 ---
 
