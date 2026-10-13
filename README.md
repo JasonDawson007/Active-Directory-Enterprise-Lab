@@ -1,11 +1,112 @@
-Enterprise Active Directory & Security Engineering LabExecutive SummaryDesigned, built, and secured an on-premises enterprise Active Directory Domain Services (AD DS) environment (dawsontech.local) running Windows Server 2022 and Windows 11 Enterprise clients. The objective of this project was to establish an enterprise-grade identity, access management, and security monitoring foundation aligned with the Principle of Least Privilege (PoLP) and Role-Based Access Control (RBAC).   Key accomplishments include:Automated identity lifecycle operations via PowerShell and CSV-based bulk provisioning.   Designed a departmental Organizational Unit (OU) structure separating privileged accounts from standard users and workstations.   Hardened domain endpoints using Group Policy Objects (GPOs), including legal compliance banners and User Account Control (UAC) privilege restrictions.   Deployed centralized departmental file storage utilizing NTFS permission inheritance stripping, role-based security groups, and Group Policy Preference (GPP) drive mapping.   Configured Advanced Security Audit Policies to capture and validate high-fidelity telemetry: successful authentications (Event ID 4624), failed authentication attempts (Event ID 4625), and account lockouts (Event ID 4740).   Simulated a brute-force credential attack, verified security telemetry, and executed incident containment and triage via PowerShell.   Environment Architecture & TopologySystem / HostnameOperating SystemDomain Role / IP AssignmentPrimary FunctionDC01   Windows Server 2022 Datacenter   Domain Controller (dawsontech.local)   AD DS, DNS, Group Policy Management, Central File Share (\\DC01\Departmental)   CLIENT01   Windows 11 Enterprise   Domain-Joined Workstation   Endpoint testing, least-privilege verification, client audit telemetry   Organizational Unit (OU) Design HierarchyPlaintextdawsontech.local
-└── DawsonCorp
-    ├── Admins
-    ├── Employees
-    │   ├── Executive
-    │   ├── Finance
-    │   ├── IT
-    │   └── SecurityOps
-    ├── Groups
-    └── WorkStations
-OU design displayed in Directory architecture.png.   Technical Implementations & Engineering PhasesPhase 1: Automated Identity Management & Directory ArchitectureBulk Provisioning Automation: Implemented Provision-ADUsers.ps1 to ingest structured HR employee data from CSV. The script programmatically formats sAMAccountName, UserPrincipalName, handles existing identity checks, and places objects into their assigned departmental OUs (Finance, SecurityOps, IT, Executive).   Delegation Structure: Segregated standard identities from privileged administrative roles to enforce security boundaries.   Phase 2: Endpoint Hardening & Group Policy EnforcementLegal Compliance Notice: Enforced an interactive logon banner via GPO (AUTHORIZED USE ONLY - DAWSONCORP) requiring acknowledgment prior to desktop session access.   Workstation Isolation & RSoP Verification: Scoped computer-level hardening policies to OU=WorkStations,OU=DawsonCorp. Validated policy application on CLIENT01 using gpresult, confirming processing of GPO-Sec-WorkstationHardening.   Least Privilege Enforcement: Enforced standard domain user boundaries preventing unauthorized configuration changes (verified via administrative elevation prompts in Device Manager).   Phase 3: Centralized Departmental Storage & RBAC EnforcementShare & NTFS Architecture: Established \\DC01\Departmental with department subfolders (Finance, SecurityOps).   Inheritance Stripping: Disabled NTFS permission inheritance, removed broad Users access, and granted read/write modifications exclusively to designated Global Security Groups (SG_Finance_RW, SG_SecurityOps_RW).Dynamic Drive Mapping: Configured Group Policy Preferences to automatically map S: (\\DC01\Departmental) for authenticated users.   Boundary Testing: Validated write access for authorized security personnel (mvance inside SecurityOps) while confirming an explicit access denial when attempting to access unauthorized departmental folders (Finance).   Phase 4: Advanced Security Auditing & Threat TelemetryCentralized Audit GPO: Created and linked GPO-Sec-AdvancedAuditing, enabling:Logon/Logoff $\rightarrow$ Audit Logon (Success and Failure)Logon/Logoff $\rightarrow$ Audit Account Lockout (Success and Failure)Account Management $\rightarrow$ Audit User Account Management (Success and Failure)Detailed Tracking $\rightarrow$ Audit Process Creation (Success)Subcategory Enforcement: Enabled Audit: Force audit policy subcategory settings... to override audit policy category settings to prevent legacy audit settings from suppressing granular logs.Command-Line Telemetry: Enabled Include command line in process creation events to capture process strings for threat analysis.Phase 5: Incident Response & Account Containment PlaybookBrute-Force Threshold: Configured an Account Lockout Policy in the Default Domain Policy set to 3 invalid logon attempts with a 30-minute lockout window.   Attack Simulation: Simulated an automated/repeated credential stuffing attack against standard account rgreen on CLIENT01, triggering an account lockout.   Forensic Ingestion: Detected and analyzed Event ID 4740 on DC01, identifying the caller workstation (CLIENT01) and targeted account (rgreen).   Triage & Remediation: Executed an administrative triage script in PowerShell to verify LockedOut: True and restored access using Unlock-ADAccount.   Evidence & Verification Gallery#Artifact NameTest Description & Technical Finding1Provision-ADUsers.ps1.jpg   PowerShell Provisioning Output: Confirms zero-error bulk creation of domain identities across departmental OUs (mvance, erostova, sconnor, rgreen, etc.).   2Directory architecture.png   Active Directory Structure: ADUC console proving hierarchical placement of user identities within their dedicated departmental organizational units.   3Proper OU level inheritance.png   Interactive Logon Banner: Visual verification of GPO legal notice compliance prompt prior to credential challenge on CLIENT01.   4AD Domain joining .jpg   RSoP Policy Processing: Command output verifying domain attachment (DAWSONTECH), workstation OU placement, and application of GPO-Sec-WorkstationHardening.   5User Access Control prompt requesting admin credentials.jpg   Privilege Boundary Denial: Local security restriction prohibiting unprivileged standard user changes inside Device Manager.   6Centralized file sharing and RBAC enforcemen.png   RBAC Authorization: Mapped S: drive showing authenticated read/write access to SecurityOps directory and test artifact generation.   7Modal Access Denied (16).png   NTFS Access Denial Modal: File system security modal showing explicit access termination when navigating outside designated departmental rights (\\DC01\Departmental\Finance).   8Event log logon success_failure.png   Authentication Telemetry Correlation: Event Viewer Security log displaying sequential Event ID 4625 (Audit Failure) followed by Event ID 4624 (Audit Success) for rgreen on CLIENT01.   9Screenshot (27).png   Account Lockout Policy Configuration: Group Policy Management Editor confirming the 3-attempt lockout threshold and 30-minute duration window.   10The referenced account is currently locked out...jpg   Workstation Lockout Enforcement: Interactive console error on CLIENT01 confirming lockout policy engagement after consecutive failed authentications.   11Event Viewer details pane showing Event ID 4740.png   Brute-Force Forensic Artifact: Security log record pinpointing account lockout origin (CLIENT01) and target identity (rgreen) under Event ID 4740.   12execution of Unlock-ADAccount.png   PowerShell Triage & Remediation: Administrative shell execution querying user lockout status, issuing Unlock-ADAccount, and validating the restoration of access.   Engineering Hurdles & TroubleshootingGPP Drive Mapping UNC Syntax Error: Initial deployment of the departmental shared drive failed to mount on CLIENT01 due to an invalid UNC prefix (\\\DC01). Identified the malformed network string inside Group Policy Preferences, re-configured the path to \\DC01\Departmental, set the action to Replace, and verified mapping.   Security Event Log Access Restrictions: Standard accounts attempting to open the Security log in Event Viewer on CLIENT01 triggered an Access is denied (5) error. Diagnosed the issue as expected Windows LSA privilege boundaries protecting Security.evtx and utilized administrative elevation (Run as administrator) to inspect security telemetry.   Active Directory GPO Object Collisions: Deleting a policy link created a phantom directory conflict when recreating GPO-Sec-AdvancedAuditing. Located and removed the unlinked object directly from the domain's root Group Policy Objects container, clearing the schema naming conflict.Audit Policy Subcategory Overrides: Addressed potential subcategory suppression by explicitly enforcing the local security option to force advanced audit policy subcategories over legacy audit categories.Key Skills DemonstratedActive Directory Administration: Domain Controller deployment, OU architecture, user/group management, schema policies.   Scripting & Automation: PowerShell bulk identity onboarding via CSV parsing, administrative user containment.   Access Control & File Systems: SMB shares, NTFS permissions, inheritance management, Role-Based Access Control (RBAC).   Endpoint Hardening: Group Policy Objects (GPO), Group Policy Preferences (GPP), User Account Control (UAC) enforcement.   Security Telemetry & Incident Response: Advanced Audit Policy, Windows Event Viewer log analysis (Event IDs 4624, 4625, 4740), brute-force detection, and account unlock remediation.   
+# Enterprise Active Directory & Security Engineering Lab
+
+**Author:** [Your Name] | [LinkedIn Profile Link] | [GitHub Profile Link]
+
+---
+
+## Executive Summary
+
+Designed, deployed, secured, and audited an on-premises enterprise Active Directory Domain Services (AD DS) environment (dawsontech.local) built on Windows Server 2022 Datacenter (DC01) and Windows 11 Enterprise (CLIENT01). The project established a secure identity and access management foundation operating under the Principle of Least Privilege (PoLP) and Role-Based Access Control (RBAC).
+
+Key accomplishments include:
+- Automated identity lifecycle operations via PowerShell and CSV-based bulk provisioning.
+- Designed a tiered departmental Organizational Unit (OU) structure isolating standard users, privileged administrative accounts, and endpoints.
+- Hardened domain endpoints using Group Policy Objects (GPOs), deploying interactive compliance banners and restricting standard user administrative actions.
+- Configured centralized departmental file shares utilizing NTFS inheritance stripping, security group access control, and Group Policy Preference (GPP) drive mapping.
+- Implemented Advanced Security Audit Policies to capture actionable authentication telemetry, validating Event IDs 4624 (Logon Success), 4625 (Logon Failure), and 4740 (Account Lockout).
+- Simulated a credential-stuffing/brute-force attack, analyzed forensic security telemetry, and executed administrative account containment and unlocking via PowerShell.
+
+---
+
+## Environment Architecture & Topology
+
+| System / Hostname | Operating System | Domain Role | Primary Function |
+| :--- | :--- | :--- | :--- |
+| **DC01** | Windows Server 2022 Datacenter | Domain Controller (dawsontech.local) | AD DS, DNS, Group Policy Management, Central File Share (\\DC01\Departmental) |
+| **CLIENT01** | Windows 11 Enterprise | Domain-Joined Workstation | Endpoint policy enforcement, RBAC verification, security telemetry generation |
+
+### Organizational Unit (OU) Design Hierarchy
+
+- **dawsontech.local**
+  - **DawsonCorp**
+    - **Admins**
+    - **Employees**
+      - Executive
+      - Finance
+      - IT
+      - SecurityOps
+    - **Groups**
+    - **WorkStations**
+
+---
+
+## Technical Implementations & Engineering Phases
+
+### Phase 1: Directory Architecture & Account Management
+- **Bulk Provisioning Automation:** Executed Provision-ADUsers.ps1 to ingest employee data from CSV into Active Directory, standardizing sAMAccountNames and automating departmental OU placement.
+- **Tiered OU Hierarchy:** Created a production-modeled directory tree under OU=DawsonCorp, partitioning objects into Admins, Employees, Groups, and WorkStations to enforce granular policy application.
+- **Role-Based Identity Segregation:** Structured departmental sub-OUs (Finance, SecurityOps, IT, Executive) to maintain clean security boundaries between standard staff and domain administration.
+
+### Phase 2: Endpoint Hardening & Policy Enforcement
+- **Legal Compliance Notice:** Enforced an interactive logon banner via GPO (AUTHORIZED USE ONLY - DAWSONCORP) requiring user acknowledgment prior to authentication.
+- **Workstation Isolation & RSoP Verification:** Linked GPO-Sec-WorkstationHardening to OU=WorkStations. Verified policy application on CLIENT01 using gpresult /r, confirming scope assignment and filtering behavior.
+- **Least Privilege Enforcement:** Validated standard user privilege restrictions by preventing unprivileged accounts from modifying system hardware within Device Manager without administrative credential elevation.
+
+### Phase 3: Centralized Storage & RBAC File Permissions
+- **Share Architecture:** Deployed a central departmental SMB share (\\DC01\Departmental) containing dedicated subdirectories for Finance and SecurityOps.
+- **NTFS Permission Hardening:** Disabled permission inheritance on confidential departmental folders, stripped default Users read permissions, and delegated access exclusively to dedicated Global Security Groups (SG_Finance_RW, SG_SecurityOps_RW).
+- **Automated Drive Mapping:** Configured Group Policy Preferences (GPP) to map drive letter S: to \\DC01\Departmental upon logon.
+- **Access Boundary Validation:** Confirmed that authorized security staff (mvance) possessed read/write capability in SecurityOps, while unauthorized access to Finance resulted in an explicit Windows Access Denied block.
+
+### Phase 4: Advanced Security Auditing & Threat Telemetry
+- **Advanced Audit Policy Configuration:** Created and enforced GPO-Sec-AdvancedAuditing, enabling granular auditing subcategories:
+  - Logon/Logoff: Audit Logon (Success and Failure)
+  - Logon/Logoff: Audit Account Lockout (Success and Failure)
+  - Account Management: Audit User Account Management (Success and Failure)
+  - Detailed Tracking: Audit Process Creation (Success)
+- **Subcategory Enforcement:** Enforced the local security option to force audit policy subcategories over legacy audit categories to prevent suppression.
+- **Command-Line Telemetry:** Enabled command-line logging within process creation events to ensure administrative and process execution visibility.
+
+### Phase 5: Incident Response & Account Containment Playbook
+- **Brute-Force Threshold Enforcement:** Defined domain account lockout thresholds in the Default Domain Policy set to 3 invalid logon attempts with a 30-minute lockout duration.
+- **Attack Simulation:** Executed repeated invalid credential submissions against standard user account rgreen on CLIENT01, triggering immediate workstation lockout enforcement.
+- **Forensic Event Ingestion:** Analyzed the Security log on DC01, identifying Event ID 4740 with the caller computer (CLIENT01) and target account (rgreen).
+- **PowerShell Containment & Remediation:** Queried directory state using Get-ADUser to confirm LockedOut: True, executed Unlock-ADAccount, and re-verified return to LockedOut: False.
+
+---
+
+## Evidence & Verification Gallery
+
+| # | Artifact Link | Test Description & Technical Finding |
+| :-: | :--- | :--- |
+| **1** | [Provision-ADUsers.ps1.jpg](images/Provision-ADUsers.ps1.jpg) | **PowerShell Provisioning Automation:** Automated bulk user onboarding execution in PowerShell ISE parsing CSV input and mapping accounts to respective OUs. |
+| **2** | [Directory architecture.png](images/Directory%20architecture.png) | **Active Directory Structure:** ADUC console confirming tiered OU structure under DawsonCorp with departmental user segregation. |
+| **3** | [Proper OU level inheritance.png](images/Proper%20OU%20level%20inheritance.png) | **Interactive Logon Banner:** Enforcement of organizational legal notice on CLIENT01 prior to desktop session access. |
+| **4** | [Workstation RSoP Verification.jpg](images/Workstation%20RSoP%20Verification%20%26%20Hardening%20GPO%20Enforcement%20on%20CLIENT01.jpg) | **Resultant Set of Policy (RSoP):** Terminal output verifying CLIENT01 membership in WorkStations OU and enforcement of GPO-Sec-WorkstationHardening. |
+| **5** | [Device Manager Elevation.jpg](images/Standard%20User%20Privilege%20Restriction%20%20Elevation%20Requirement%20in%20Device%20Manager.jpg) | **Privilege Boundary Enforcement:** System dialog blocking standard user modifications in Device Manager without elevated administrative credentials. |
+| **6** | [Centralized file sharing and RBAC.png](images/Centralized%20file%20sharing%20and%20RBAC%20enforcemen.png) | **RBAC Read/Write Authorization:** Authenticated access on drive S: confirming file write permissions inside the authorized SecurityOps directory. |
+| **7** | [Modal Access Denied.png](images/Modal%20Access%20Denied%20%2816%29.png) | **NTFS Access Termination:** Explicit Windows security denial preventing unauthorized personnel from accessing restricted departmental folders (\\DC01\Departmental\Finance). |
+| **8** | [Event log logon success_failure.png](images/Event%20log%20logon%20success_failure.png) | **Authentication Telemetry Correlation:** Event Viewer Security log detailing consecutive Event ID 4625 (Logon Failure) entries followed by Event ID 4624 (Logon Success) for rgreen. |
+| **9** | [Account lockout GPO configuration.png](images/Account%20lockout%20GPO%20configuration.png) | **Domain Lockout Policy Configuration:** Group Policy Management Editor confirming the 3-attempt lockout threshold and 30-minute duration window. |
+| **10** | [Account locked out prompt.jpg](images/The%20referenced%20account%20is%20currently%20locked%20out%20and%20may%20not%20be%20logged%20on%20to..jpg) | **Endpoint Lockout Enforcement:** Workstation authentication interface confirming active account lockout after repeated invalid password submissions. |
+| **11** | [Event Viewer Event ID 4740.png](images/Event%20Viewer%20details%20pane%20showing%20Event%20ID%204740.png) | **Brute-Force Detection (Event 4740):** Forensic log on DC01 isolating account lockout event, source workstation (CLIENT01), and targeted account (rgreen). |
+| **12** | [Execution of Unlock-ADAccount.png](images/Execution%20of%20Unlock-ADAccount.png) | **PowerShell Triage & Remediation:** Verification of account lockout state (LockedOut: True), execution of Unlock-ADAccount, and validation of successful account restoration (LockedOut: False). |
+
+---
+
+## Engineering Hurdles & Troubleshooting
+
+- **GPP Drive Mapping UNC Syntax Error:** Initial deployment of the shared departmental drive failed to mount on CLIENT01 due to a malformed UNC path (\\\DC01). Identified the syntax error within Group Policy Preferences, re-configured the path to \\DC01\Departmental, set the action to Replace, and verified successful mapping.
+- **Security Event Log Access Restrictions:** Standard user accounts attempting to open the Security log in Event Viewer encountered an Access is denied (5) error. Identified that the Windows Local Security Authority (LSA) restricts Security.evtx access to administrators, resolving the issue by elevating Event Viewer via Run as administrator.
+- **GPO Directory Collision Resolution:** Deleting a policy link left an unlinked GPO object in Active Directory, preventing recreation under the same name. Resolved the conflict by locating and removing the orphaned object directly from the root Group Policy Objects container in gpmc.msc.
+- **Audit Policy Subcategory Overrides:** Addressed potential subcategory suppression by explicitly enabling the local security option to force advanced audit policy subcategories over legacy audit categories.
+
+---
+
+## Key Skills Demonstrated
+
+- **Active Directory Administration:** Domain architecture design, OU hierarchy, user and security group management, Default Domain Policy configuration.
+- **Identity & Access Management (IAM):** Role-Based Access Control (RBAC), Principle of Least Privilege (PoLP), inheritance stripping, NTFS and share permissions.
+- **Endpoint Hardening & Governance:** Group Policy Objects (GPO), Group Policy Preferences (GPP), User Account Control (UAC) enforcement, Resultant Set of Policy (RSoP) analysis.
+- **Security Telemetry & Auditing:** Advanced Audit Policy deployment, Windows Event Viewer forensic analysis (Event IDs 4624, 4625, 4740), brute-force detection.
+- **Incident Response & Automation:** Account lockout investigation, caller machine identification, PowerShell incident triage and account remediation (Unlock-ADAccount).
