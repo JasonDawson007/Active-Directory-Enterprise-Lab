@@ -40,6 +40,11 @@ Key accomplishments include:
 
 ---
 
+### IT Service Management (ITSM) Integration
+* **Platform:** Atlassian Jira Service Management (`DawsonTech Service Desk`)
+* **Workflows Supported:** Incident Management, Access Requests (RBAC), Service Request Fulfillment.
+* **Operational Lifecycle:** User intake $\rightarrow$ Queue assignment $\rightarrow$ Forensic investigation & internal notes $\rightarrow$ Customer communication $\rightarrow$ Incident resolution.
+
 ## Technical Implementations & Engineering Phases
 
 ### Phase 1: Directory Architecture & Account Management
