@@ -91,6 +91,7 @@ Key accomplishments include:
 | **10** | [Account Locked Prompt](images/The%20referenced%20account%20is%20currently%20locked%20out%20and%20may%20not%20be%20logged%20on%20to..png) | **Endpoint Lockout Enforcement:** Workstation authentication interface confirming active account lockout after repeated invalid password submissions. |
 | **11** | [Event Viewer Event ID 4740.png](images/Event%20Viewer%20details%20pane%20showing%20Event%20ID%204740.png) | **Brute-Force Detection (Event 4740):** Forensic log on DC01 isolating account lockout event, source workstation (CLIENT01), and targeted account (rgreen). |
 | **12** | [Execution of Unlock-ADAccount.png](images/Execution%20of%20Unlock-ADAccount.png) | **PowerShell Triage & Remediation:** Verification of account lockout state (LockedOut: True), execution of Unlock-ADAccount, and validation of successful account restoration (LockedOut: False). |
+| **13** | [Jira Service Desk - Resolved Account Lockout Ticket.png](images/Jira%20Service%20Desk%20-%20Resolved%20Account%20Lockout%20Ticket.png) | **ITSM Ticket Lifecycle & Triage:** Jira Service Management agent queue validating intake, SLA tracking, internal diagnostic documentation, and resolution of Incident DTSD-1 (Workstation Lockout). |
 ---
 
 ## Engineering Hurdles & Troubleshooting
